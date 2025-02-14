@@ -10,6 +10,8 @@ const ReminderSchedule = require("./models/ReminderSchedule");
 const jwt = require("jsonwebtoken");
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
+const logger = require("./logger"); // Import Winston logger
+const morgan = require("morgan");
 
 dotenv.config();
 
@@ -18,6 +20,13 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(express.json());
+app.use(
+  morgan("combined", {
+    stream: {
+      write: (message) => logger.info(message.trim()),
+    },
+  }),
+);
 
 // Connect to MongoDB
 mongoose
@@ -42,7 +51,9 @@ app.post("/api/signup", async (req, res) => {
     res
       .status(201)
       .json({ message: "User created successfully", userId: user._id });
+    logger.info(`Patient created successfully: ${patientId}`);
   } catch (err) {
+    logger.error(`Error while processing request: ${err.message}`);
     res.status(400).json({ error: err.message });
   }
 });
@@ -51,12 +62,14 @@ app.post("/api/login", async (req, res) => {
   const { email, password } = req.body;
   const user = await User.findOne({ email });
   if (!user || !(await bcrypt.compare(password, user.password))) {
+    logger.error(`Invalid credentials.`);
     return res.status(400).json({ error: "Invalid credentials" });
   }
   const token = jwt.sign(
     { userId: user._id, role: user.role },
     process.env.JWT_SECRET,
   );
+  logger.info("Login successful.");
   res.json({ token });
 });
 
@@ -64,6 +77,7 @@ app.post("/api/assign-doctor", async (req, res) => {
   const { patientId, doctorId } = req.body;
   const assignment = new Assignment({ patientId, doctorId });
   await assignment.save();
+  logger.info(`Doctor ${doctorId} assigned to patient ${patientId}.`);
   res.status(201).json({ message: "Doctor assigned successfully" });
 });
 
@@ -128,6 +142,7 @@ app.post("/api/submit-notes", async (req, res) => {
       message:
         "New note submitted. Old reminders & schedules deleted. New schedule created.",
     });
+    logger.info(`New note submitted for patient ${patientId}`);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -148,7 +163,9 @@ app.post("/api/check-in", async (req, res) => {
     await schedule.save();
 
     res.json({ message: "Check-in recorded successfully" });
+    logger.info(`Check-in successful for ${patientId}`);
   } catch (err) {
+    logger.error(`Error while processing request: ${err.message}`);
     res.status(500).json({ error: err.message });
   }
 });
@@ -158,6 +175,7 @@ app.get("/api/patients", async (req, res) => {
     const patients = await User.find({ role: "patient" });
     res.json(patients);
   } catch (err) {
+    logger.error(`Error while processing request: ${err.message}`);
     res.status(500).json({ error: err.message });
   }
 });
@@ -167,6 +185,7 @@ app.get("/api/doctors", async (req, res) => {
     const doctors = await User.find({ role: "doctor" });
     res.json(doctors);
   } catch (err) {
+    logger.error(`Error while processing request: ${err.message}`);
     res.status(500).json({ error: err.message });
   }
 });

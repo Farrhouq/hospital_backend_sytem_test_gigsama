@@ -1,0 +1,2 @@
+[2025-02-14T16:52:35.193Z] INFO: New note submitted for patient 67add4554b543ad6d3940b35
+[2025-02-14T16:52:35.200Z] INFO: ::1 - - [14/Feb/2025:16:52:35 +0000] "POST /api/submit-notes HTTP/1.1" 201 90 "-" "PostmanRuntime/7.43.0"
